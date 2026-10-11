@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusFlow: Smart City Traffic Grid Simulator</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0b0f19; color: #f8fafc; margin: 15px; }
+        .container { max-width: 950px; margin: auto; }
+        .controls { background: #151e30; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; border: 1px solid #22314e; align-items: center; }
+        button, select { padding: 8px 14px; border-radius: 6px; border: 1px solid #334155; background: #0b0f19; color: #fff; font-size: 13px; font-weight: bold; cursor: pointer; }
+        button { background: #2563eb; border: none; }
+        button:hover { background: #1d4ed8; }
+        button.secondary { background: #334155; }
+        button.secondary:hover { background: #475569; }
+        #canvas { background: #0f172a; border-radius: 8px; display: block; width: 100%; height: auto; border: 1px solid #22314e; cursor: pointer; }
+        .log-box { background: #151e30; padding: 12px; border-radius: 8px; margin-top: 15px; border: 1px solid #22314e; font-family: monospace; font-size: 12px; height: 110px; overflow-y: auto; }
+        .log-item { color: #fbbf24; margin-bottom: 4px; }
+        .stats { display: flex; gap: 20px; font-size: 13px; color: #38bdf8; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3>NexusFlow: Smart City Traffic Grid & Adaptive Signals</h3>
+        <div class="controls">
+            <button onclick="spawnVehicleBatch()">Spawn Traffic Surge</button>
+            <button class="secondary" onclick="toggleSignalMode()">Mode: <span id="modeText">Adaptive AI</span></button>
+            <div class="stats">
+                <span>Active Vehicles: <span id="carCount">0</span></span>
+                <span>Signal State: <span id="signalStateText" style="color: #4ade80;">NS GREEN</span></span>
+            </div>
+        </div>
+
+        <canvas id="canvas" width="900" height="500"></canvas>
+
+        <div class="log-box">
+            <div style="color: #38bdf8; font-weight: bold; margin-bottom: 6px;">Intersection Telemetry & Signal Controller Logs:</div>
+            <div id="logContent"></div>
+        </div>
+    </div>
+
+    <script
+      
