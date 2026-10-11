@@ -39,5 +39,227 @@
         </div>
     </div>
 
-    <script
-      
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Intersection Center Coordinates
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const roadWidth = 100;
+
+        let vehicles = [];
+        let signalMode = "ADAPTIVE"; // ADAPTIVE or FIXED
+        let currentGreen = "NS"; // "NS" (North-South) or "EW" (East-West)
+        let signalTimer = 0;
+        let nsQueueCount = 0;
+        let ewQueueCount = 0;
+
+        function logMessage(msg) {
+            const logContent = document.getElementById('logContent');
+            const div = document.createElement('div');
+            div.className = 'log-item';
+            div.innerText = `> [${new Date().toLocaleTimeString()}] ${msg}`;
+            logContent.prepend(div);
+            if (logContent.children.length > 20) logContent.lastChild.remove();
+        }
+
+        class Vehicle {
+            constructor(dir) {
+                this.dir = dir; // 'N', 'S', 'E', 'W'
+                this.speed = 2.5;
+                this.stopped = false;
+                this.color = `hsl(${Math.random() * 360}, 75%, 60%)`;
+
+                if (dir === 'N') {
+                    this.x = cx - 25;
+                    this.y = -20;
+                } else if (dir === 'S') {
+                    this.x = cx + 25;
+                    this.y = canvas.height + 20;
+                } else if (dir === 'W') {
+                    this.x = -20;
+                    this.y = cy + 25;
+                } else if (dir === 'E') {
+                    this.x = canvas.width + 20;
+                    this.y = cy - 25;
+                }
+            }
+
+            update(frontVehicle) {
+                this.stopped = false;
+
+                // Stop Line Collision Checks
+                if (this.dir === 'N' && currentGreen !== 'NS' && this.y < cy - roadWidth/2 && this.y >= cy - roadWidth/2 - 40) {
+                    this.stopped = true;
+                } else if (this.dir === 'S' && currentGreen !== 'NS' && this.y > cy + roadWidth/2 && this.y <= cy + roadWidth/2 + 40) {
+                    this.stopped = true;
+                } else if (this.dir === 'W' && currentGreen !== 'EW' && this.x < cx - roadWidth/2 && this.x >= cx - roadWidth/2 - 40) {
+                    this.stopped = true;
+                } else if (this.dir === 'E' && currentGreen !== 'EW' && this.x > cx + roadWidth/2 && this.x <= cx + roadWidth/2 + 40) {
+                    this.stopped = true;
+                }
+
+                // Distance Buffer for Cars Ahead
+                if (frontVehicle) {
+                    let dist = Math.hypot(this.x - frontVehicle.x, this.y - frontVehicle.y);
+                    if (dist < 35) {
+                        this.stopped = true;
+                    }
+                }
+
+                if (!this.stopped) {
+                    if (this.dir === 'N') this.y += this.speed;
+                    if (this.dir === 'S') this.y -= this.speed;
+                    if (this.dir === 'W') this.x += this.speed;
+                    if (this.dir === 'E') this.x -= this.speed;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                if (this.dir === 'N' || this.dir === 'S') {
+                    ctx.rotate(Math.PI / 2);
+                }
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-12, -7, 24, 14); // Car body
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(-4, -5, 8, 10);   // Windshield
+                ctx.restore();
+            }
+
+            isOutOfBounds() {
+                return this.x < -50 || this.x > canvas.width + 50 || this.y < -50 || this.y > canvas.height + 50;
+            }
+        }
+
+        function spawnVehicleBatch() {
+            const dirs = ['N', 'S', 'E', 'W'];
+            for (let i = 0; i < 4; i++) {
+                let randomDir = dirs[Math.floor(Math.random() * dirs.length)];
+                vehicles.push(new Vehicle(randomDir));
+            }
+            logMessage("Traffic surge injected into grid network.");
+        }
+
+        function toggleSignalMode() {
+            signalMode = signalMode === "ADAPTIVE" ? "FIXED" : "ADAPTIVE";
+            document.getElementById('modeText').innerText = signalMode === "ADAPTIVE" ? "Adaptive AI" : "Fixed Timer";
+            logMessage(`Signal Controller switched to ${signalMode} mode.`);
+        }
+
+        function updateSignals() {
+            signalTimer++;
+
+            nsQueueCount = vehicles.filter(v => (v.dir === 'N' || v.dir === 'S') && v.stopped).length;
+            ewQueueCount = vehicles.filter(v => (v.dir === 'E' || v.dir === 'W') && v.stopped).length;
+
+            let threshold = 180; // Default cycle duration (~3s)
+            if (signalMode === "ADAPTIVE") {
+                if (currentGreen === "NS" && ewQueueCount > 2 && signalTimer > 60) threshold = 60;
+                if (currentGreen === "EW" && nsQueueCount > 2 && signalTimer > 60) threshold = 60;
+            }
+
+            if (signalTimer > threshold) {
+                currentGreen = currentGreen === "NS" ? "EW" : "NS";
+                signalTimer = 0;
+                document.getElementById('signalStateText').innerText = `${currentGreen} GREEN`;
+                document.getElementById('signalStateText').style.color = currentGreen === 'NS' ? '#4ade80' : '#f43f5e';
+                logMessage(`Signal Controller cycled: Green light shifted to ${currentGreen} corridor.`);
+            }
+        }
+
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Asphalt Roads
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(cx - roadWidth/2, 0, roadWidth, canvas.height);
+            ctx.fillRect(0, cy - roadWidth/2, canvas.width, roadWidth);
+
+            // Center Dashed Lane Markings
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([12, 12]);
+
+            ctx.beginPath();
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, cy - roadWidth/2);
+            ctx.moveTo(cx, cy + roadWidth/2); ctx.lineTo(cx, canvas.height);
+            ctx.moveTo(0, cy); ctx.lineTo(cx - roadWidth/2, cy);
+            ctx.moveTo(cx + roadWidth/2, cy); ctx.lineTo(canvas.width, cy);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Stop Lines
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(cx - roadWidth/2, cy - roadWidth/2 - 4, roadWidth/2, 4); // North
+            ctx.fillRect(cx, cy + roadWidth/2, roadWidth/2, 4); // South
+            ctx.fillRect(cx - roadWidth/2 - 4, cy, 4, roadWidth/2); // West
+            ctx.fillRect(cx + roadWidth/2, cy - roadWidth/2, 4, roadWidth/2); // East
+
+            // Draw Signal Lights
+            drawTrafficLight(cx - roadWidth/2 - 20, cy - roadWidth/2 - 30, currentGreen === 'NS');
+            drawTrafficLight(cx + roadWidth/2 + 10, cy + roadWidth/2 + 10, currentGreen === 'NS');
+            drawTrafficLight(cx + roadWidth/2 + 10, cy - roadWidth/2 - 30, currentGreen === 'EW');
+            drawTrafficLight(cx - roadWidth/2 - 20, cy + roadWidth/2 + 10, currentGreen === 'EW');
+        }
+
+        function drawTrafficLight(x, y, isGreen) {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(x, y, 16, 24);
+            ctx.strokeStyle = '#334155';
+            ctx.strokeRect(x, y, 16, 24);
+
+            ctx.beginPath();
+            ctx.arc(x + 8, y + 6, 4, 0, Math.PI * 2);
+            ctx.fillStyle = !isGreen ? '#ef4444' : '#451a1a';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(x + 8, y + 18, 4, 0, Math.PI * 2);
+            ctx.fillStyle = isGreen ? '#22c55e' : '#14532d';
+            ctx.fill();
+        }
+
+        function loop() {
+            updateSignals();
+
+            // Random vehicle generation
+            if (Math.random() < 0.03) {
+                const dirs = ['N', 'S', 'E', 'W'];
+                vehicles.push(new Vehicle(dirs[Math.floor(Math.random() * dirs.length)]));
+            }
+
+            drawGrid();
+
+            for (let i = vehicles.length - 1; i >= 0; i--) {
+                let v = vehicles[i];
+                let front = vehicles.find(other => other !== v && other.dir === v.dir && 
+                    ((v.dir === 'N' && other.y > v.y) || 
+                     (v.dir === 'S' && other.y < v.y) || 
+                     (v.dir === 'W' && other.x > v.x) || 
+                     (v.dir === 'E' && other.x < v.x)));
+
+                v.update(front);
+                v.draw();
+
+                if (v.isOutOfBounds()) {
+                    vehicles.splice(i, 1);
+                }
+            }
+
+            document.getElementById('carCount').innerText = vehicles.length;
+            requestAnimationFrame(loop);
+        }
+
+        // Initialize with default vehicles
+        for (let i = 0; i < 4; i++) {
+            vehicles.push(new Vehicle(['N', 'S', 'E', 'W'][i]));
+        }
+
+        logMessage("NexusFlow Grid initialized. Vehicles dispatched.");
+        loop();
+    </script>
+</body>
+</html>
